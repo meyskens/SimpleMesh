@@ -10,6 +10,7 @@
 #define FREQUENCY   RF69_433MHZ
 
 SimpleMesh::SimpleMesh(int nodeID, int networkID) {
+    Serial.println("Initializing SimpleMesh");
     _nodeID = nodeID;
     _networkID = networkID;
     _radio.initialize(FREQUENCY,nodeID,networkID);
@@ -17,41 +18,50 @@ SimpleMesh::SimpleMesh(int nodeID, int networkID) {
     radio.setHighPower();
 #endif
     _radio.promiscuous(true);
+    Serial.println("Finished initializing");
+    _sayHello();
 }
 
 bool SimpleMesh::receiveDone() {
+    Serial.println("check for messages");
     if (_radio.receiveDone()) {
         if (_radio.TARGETID == _nodeID) {
+             Serial.println("Received message for this node");
             if (_radio.ACKRequested()) {
                 _radio.sendACK();
             }
-            _seqNumbers[_radio.DATA[0]] = _radio.DATA[1];
-            return true;
-        } else {
-            if (_radio.TARGETID == 0) { // Broadcast!
-                _handleBroadcast();
-                return false;
-            }
-            if (SimpleMesh::_compare(_radio.DATA, "KEY", 3)) { // is key exchange 
-                _finishHandshake(_radio.SENDERID);
-                return false;
-            }
-            _seqNumbers[_radio.DATA[0]] = _radio.DATA[1];
-            // relay everything!
-            // TO DO
+        } 
+        if (_radio.TARGETID == 0) { // Broadcast!
+             _handleBroadcast();
+            return false;
         }
+        if (SimpleMesh::_compare(_radio.DATA, "KEY", 3) && _radio.TARGETID == _nodeID) { // is key exchange 
+            _finishHandshake(_radio.SENDERID);
+            return false;
+        }
+        // special cases handles
+        _seqNumbers[_radio.DATA[0]] = _radio.DATA[2];
+        if (_radio.DATA[1] == _nodeID) {
+            return true;
+        }
+        _relay();
     }
     return false;
 }
 
 bool SimpleMesh::send(int to,char data[]) {
+     Serial.println("Sending message");
     _sequence++;
     if (_sequence >= 255) {
         _sequence = 0;
     }
     // to do add encryption
-    char out[sizeof(data) + 2];
-    sprintf(out, "%s%s%s", _nodeID, _sequence, data);
+    char out[sizeof(data) + 3];
+    sprintf(out, "%c%c%s", _nodeID, _sequence, data);
+    
+    Serial.print("Sending ");
+    Serial.println(out);
+
     return _radio.sendWithRetry(to, out, sizeof(out));
 }
 
@@ -124,5 +134,18 @@ void SimpleMesh::_filter(char data[], int start, int len, char* out) {
 }
 
 void SimpleMesh::_sayHello() {
+    Serial.println("Sending hello");
     _radio.sendWithRetry(0, "HELLO", 5);
+}
+
+void SimpleMesh::_relay() {
+    // TO DO ADD ENCRYPTION
+    Serial.println("Relaying");
+    for (int i = 0; i < sizeof(_privatekeys); i++) {
+        if (_privatekeys != null) {
+            Serial.print("Relaying to ");
+            Serial.println(i);
+            _radio.sendWithRetry(i, _radio.DATA, sizeof(_radio.DATA));
+        }
+    }
 }

@@ -8,7 +8,7 @@ SimpleMesh is a simple way to build mash networks using and Arduino and RFM69 ch
 SimpleMesh uses the RFM69's built in capabilities for addressing but has to add some extra 2 bytes to word correct
 ```
  xxxx xxxx xxxx xxxx ------------
- |senderID|sequence| data
+ |senderID|destinationID|sequence| data
 ```
 senderID is the real sender, it is used to keep the seq number correct. If the sequence number is 0 it means a reset of counting and will always be repeated.
 

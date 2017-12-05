@@ -31,11 +31,11 @@ class SimpleMesh
     uint8_t _networkID;
     RFM69 _radio;
     uint8_t _privatekeys[];
-    uint8_t _peers[];
     uint8_t _seqNumbers[99];
     uint8_t _sequence;
     
     void _sayHello();
+    void _relay();
     void _handleBroadcast();
     void _doHandShake(int senderID);
     bool _compare(char data[], char compare[], int len);
