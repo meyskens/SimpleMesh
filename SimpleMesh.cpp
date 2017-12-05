@@ -135,7 +135,8 @@ void SimpleMesh::_filter(char data[], int start, int len, char* out) {
 
 void SimpleMesh::_sayHello() {
     Serial.println("Sending hello");
-    _radio.sendWithRetry(0, "HELLO", 5);
+    _radio.send(0, "HELLO", 5);
+    Serial.println("Waiting for new friends");
 }
 
 void SimpleMesh::_relay() {
