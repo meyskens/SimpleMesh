@@ -25,6 +25,7 @@ bool SimpleMesh::receiveDone() {
             if (_radio.ACKRequested()) {
                 _radio.sendACK();
             }
+            _seqNumbers[_radio.DATA[0]] = _radio.DATA[1];
             return true;
         } else {
             if (_radio.TARGETID == 0) { // Broadcast!
@@ -32,10 +33,10 @@ bool SimpleMesh::receiveDone() {
                 return false;
             }
             if (SimpleMesh::_compare(_radio.DATA, "KEY", 3)) { // is key exchange 
-                // TO DO
+                _finishHandshake(_radio.SENDERID);
                 return false;
             }
-
+            _seqNumbers[_radio.DATA[0]] = _radio.DATA[1];
             // relay everything!
             // TO DO
         }
@@ -44,7 +45,14 @@ bool SimpleMesh::receiveDone() {
 }
 
 bool SimpleMesh::send(int to,char data[]) {
-    return _radio.sendWithRetry(to, data, sizeof(data));
+    _sequence++;
+    if (_sequence >= 255) {
+        _sequence = 0;
+    }
+    // to do add encryption
+    char out[sizeof(data) + 2];
+    sprintf(out, "%s%s%s", _nodeID, _sequence, data);
+    return _radio.sendWithRetry(to, out, sizeof(out));
 }
 
 MessagePayload SimpleMesh::getMessage() {
@@ -76,9 +84,26 @@ void SimpleMesh::_doHandShake(int senderID) {
     _privatekeys[senderID] = privateKey;
 
     char out[43];
-    sprintf(out, "%s%", "KEY", publicKey);
+    sprintf(out, "%s%s", "KEY", publicKey);
 
     SimpleMesh::send(senderID, out);
+}
+
+void SimpleMesh::_finishHandshake(int senderID) {
+    uECC_set_rng(&RNG);
+    const struct uECC_Curve_t * curve = uECC_secp160r1();
+    if (_privatekeys[senderID] == null) {
+        uint8_t privateKey[21];
+        uint8_t publicKey[40];
+        uECC_make_key(publicKey, privateKey, curve);
+        _privatekeys[senderID] = privateKey;
+        char out[43];
+        sprintf(out, "%s%s", "KEY", publicKey);
+        SimpleMesh::send(senderID, out);
+    }
+    char key[40];
+    SimpleMesh::_filter(_radio.DATA, 3, 43, key);
+
 }
 
 bool SimpleMesh::_compare(char data[], char compare[], int len) {
@@ -88,4 +113,16 @@ bool SimpleMesh::_compare(char data[], char compare[], int len) {
         }
     }
     return true;
+}
+
+
+void SimpleMesh::_filter(char data[], int start, int len, char* out) {
+    start--;
+    for (int i = start; i < (len + start); i++){
+        out[(i-start)] = data[i];
+    }
+}
+
+void SimpleMesh::_sayHello() {
+    _radio.sendWithRetry(0, "HELLO", 5);
 }

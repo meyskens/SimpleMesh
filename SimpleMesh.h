@@ -27,14 +27,20 @@ class SimpleMesh
     MessagePayload getMessage();
     bool send(int to, char data[]);
   private:
-    int _nodeID;
-    int _networkID;
+    uint8_t _nodeID;
+    uint8_t _networkID;
     RFM69 _radio;
     uint8_t _privatekeys[];
+    uint8_t _peers[];
+    uint8_t _seqNumbers[99];
+    uint8_t _sequence;
     
+    void _sayHello();
     void _handleBroadcast();
     void _doHandShake(int senderID);
     bool _compare(char data[], char compare[], int len);
+    void _filter(char data[], int start, int len, char* out);
+    void _finishHandshake(int senderID);
 };
 
 #endif
